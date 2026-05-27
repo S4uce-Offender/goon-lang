@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_H
 #define INTERPRETER_H
 
+#include <math.h>
 #include "model.h"
 
 #define APPLY_UNARY_NUMERIC_OP(val, op)             \

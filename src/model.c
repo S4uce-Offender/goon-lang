@@ -60,13 +60,15 @@ void printUnaryNode(struct UnaryNode* un_node, uint8_t hierarchy) {
     }
 }
 
-struct BinaryNode* createBinaryNode(struct Arena* arena, char op,
-                                    struct Node* left, struct Node* right) {
+struct BinaryNode* createBinaryNode(struct Arena* arena, char* op,
+                                    uint8_t op_len, struct Node* left,
+                                    struct Node* right) {
     struct BinaryNode* node = arenaAlloc(arena, sizeof(struct BinaryNode));
 
     node->base.kind = NODE_BINARY;
 
     node->op = op;
+    node->op_len = op_len;
     node->left = left;
     node->right = right;
 
@@ -76,8 +78,8 @@ struct BinaryNode* createBinaryNode(struct Arena* arena, char op,
 void printBinaryNode(struct BinaryNode* binary_node, uint8_t hierarchy) {
     char* hierarchy_color = getBracketColor(hierarchy);
 
-    printf("%sBinNode%s%s{%s %c, ", hierarchy_color, COLOR_RESET,
-           hierarchy_color, COLOR_RESET, binary_node->op);
+    printf("%sBinNode%s%s{%s %.*s, ", hierarchy_color, COLOR_RESET,
+           hierarchy_color, COLOR_RESET, binary_node->op_len, binary_node->op);
 
     if (binary_node->left->kind == NODE_INT) {
         struct IntNode* n = (struct IntNode*)binary_node->left;

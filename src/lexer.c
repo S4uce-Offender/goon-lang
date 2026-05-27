@@ -28,6 +28,8 @@ char* tokenTypeToString(enum TokenType type) {
             return "TIMES";
         case TOK_DIV:
             return "DIV";
+        case TOK_POW:
+            return "POW";
         case TOK_NOT:
             return "NOT";
         case TOK_ASSIGNMENT:
@@ -318,12 +320,24 @@ void tokenize(struct Lexer* lex) {
                     break;
 
                 case '*':
-                    lex->tokens.daAppend(
-                        &lex->tokens,
-                        (struct Token){.lexeme = lex->source + lex->start_char,
-                                       .len = lex_len,
-                                       .token_type = TOK_TIMES,
-                                       .line = lex->line});
+                    if (lex->match(lex, '*')) {
+                        lex_len++;
+                        lex->tokens.daAppend(
+                            &lex->tokens,
+                            (struct Token){
+                                .lexeme = lex->source + lex->start_char,
+                                .len = lex_len,
+                                .token_type = TOK_POW,
+                                .line = lex->line});
+                    } else {
+                        lex->tokens.daAppend(
+                            &lex->tokens,
+                            (struct Token){
+                                .lexeme = lex->source + lex->start_char,
+                                .len = lex_len,
+                                .token_type = TOK_TIMES,
+                                .line = lex->line});
+                    }
                     break;
 
                 case '/':

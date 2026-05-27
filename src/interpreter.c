@@ -10,20 +10,35 @@ struct NumericalVal interpretBinaryNode(struct BinaryNode* bin_node) {
     else
         result.return_val = RET_INT;
 
-    switch (bin_node->op) {
-        case '+':
-            APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, +);
-            break;
-        case '-':
-            APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, -);
-            break;
-        case '*':
-            APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, *);
-            break;
-        case '/':
-            APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, /);
-            break;
+    if (bin_node->op_len == 1) {
+        switch (bin_node->op[0]) {
+            case '+':
+                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, +);
+                break;
+            case '-':
+                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, -);
+                break;
+            case '*':
+                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, *);
+                break;
+            case '/':
+                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, /);
+                break;
+        }
+    } else {
+        result.return_val = RET_FLOAT;
+        float arg1;
+        float arg2;
+
+        arg1 = (left_val.return_val == RET_INT) ? (float)left_val.as.i
+                                                : left_val.as.f;
+
+        arg2 = (right_val.return_val == RET_INT) ? (float)right_val.as.i
+                                                 : right_val.as.f;
+
+        result.as.f = powf(arg1, arg2);
     }
+
     return result;
 }
 

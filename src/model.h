@@ -55,14 +55,16 @@ void printUnaryNode(struct UnaryNode* un_node, uint8_t hierarchy);
 struct BinaryNode {
     struct Node base;
 
-    char op;
+    char* op;
+    uint8_t op_len;
 
     struct Node* left;
     struct Node* right;
 };
 
-struct BinaryNode* createBinaryNode(struct Arena* arena, char op,
-                                    struct Node* left, struct Node* right);
+struct BinaryNode* createBinaryNode(struct Arena* arena, char* op,
+                                    uint8_t op_len, struct Node* left,
+                                    struct Node* right);
 
 void printBinaryNode(struct BinaryNode* binary_node, uint8_t hierarchy);
 

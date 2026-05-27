@@ -19,6 +19,7 @@ bool parserIsNext(struct Parser* p, enum TokenType t);
 bool matchToken(struct Parser* p, enum TokenType t);
 
 struct Node* parsePrimary(struct Parser* p, struct Arena* arena);
+struct Node* parsePower(struct Parser* p, struct Arena* arena);
 struct Node* parseUnary(struct Parser* p, struct Arena* arena);
 struct Node* parseFactor(struct Parser* p, struct Arena* arena);
 struct Node* parseMultiplication(struct Parser* p, struct Arena* arena);

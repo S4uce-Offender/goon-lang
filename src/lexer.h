@@ -26,6 +26,7 @@ enum TokenType {
     TOK_MINUS,
     TOK_TIMES,
     TOK_DIV,
+    TOK_POW,
     TOK_NOT,
     TOK_ASSIGNMENT,
     TOK_GREATER,

@@ -1,7 +1,7 @@
 SRC = $(wildcard src/*.c)
 
 build:
-	gcc -g $(SRC) -o gooner
+	gcc -g $(SRC) -o gooner -lm
 run:
 	./gooner scripts/test.goon
 

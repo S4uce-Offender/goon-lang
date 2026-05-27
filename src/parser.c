@@ -74,17 +74,32 @@ struct Node* parsePrimary(struct Parser* p, struct Arena* arena) {
     }
 }
 
+struct Node* parsePower(struct Parser* p, struct Arena* arena) {
+    struct Node* left = parsePrimary(p, arena);
+
+    while (matchToken(p, TOK_POW)) {
+        struct Token* op = getPreviousToken(p);
+        struct Node* right = parsePower(p, arena);
+        struct BinaryNode* bin_node =
+            createBinaryNode(arena, op->lexeme, 2, left, right);
+
+        return &bin_node->base;
+    }
+
+    return left;
+}
+
 struct Node* parseUnary(struct Parser* p, struct Arena* arena) {
     if (matchToken(p, TOK_PLUS) || matchToken(p, TOK_MINUS) ||
         matchToken(p, TOK_NOT)) {
         struct Token* op = getPreviousToken(p);
-        struct Node* operand = parsePrimary(p, arena);
+        struct Node* operand = parseUnary(p, arena);
 
         struct UnaryNode* un_op = createUnaryNode(arena, *op->lexeme, operand);
         return &un_op->base;
     }
 
-    return parsePrimary(p, arena);
+    return parsePower(p, arena);
 }
 
 struct Node* parseFactor(struct Parser* p, struct Arena* arena) {
@@ -97,7 +112,7 @@ struct Node* parseMultiplication(struct Parser* p, struct Arena* arena) {
         struct Token* op = getPreviousToken(p);
         struct Node* right = parseFactor(p, arena);
         struct BinaryNode* bin_node =
-            createBinaryNode(arena, *op->lexeme, expr, right);
+            createBinaryNode(arena, op->lexeme, 1, expr, right);
 
         expr = &bin_node->base;
     }
@@ -111,7 +126,7 @@ struct Node* parseAddition(struct Parser* p, struct Arena* arena) {
         struct Token* op = getPreviousToken(p);
         struct Node* right = parseMultiplication(p, arena);
         struct BinaryNode* bin_node =
-            createBinaryNode(arena, *op->lexeme, expr, right);
+            createBinaryNode(arena, op->lexeme, 1, expr, right);
 
         expr = &bin_node->base;
     }
