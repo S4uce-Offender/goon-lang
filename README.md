@@ -5,6 +5,7 @@ Addition (+)
 Subtraction (-)
 Multiplication (*)
 Division (/)
+
 To build this project simply run make build.
 
 USAGE
