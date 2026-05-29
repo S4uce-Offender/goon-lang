@@ -1,5 +1,6 @@
 /scripts
 /.vscode
+/.VS*
 .clang-format
 callgrind*
 gooner
