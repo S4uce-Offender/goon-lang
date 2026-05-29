@@ -1,6 +1,6 @@
 /scripts
 /.vscode
-/.VS*
+/.VSCodeCounter
 .clang-format
 callgrind*
 gooner
