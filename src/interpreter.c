@@ -1,14 +1,22 @@
 #include "interpreter.h"
 
-struct NumericalVal interpretBinaryNode(struct BinaryNode* bin_node) {
-    struct NumericalVal left_val = interpret(bin_node->left);
-    struct NumericalVal right_val = interpret(bin_node->right);
-    struct NumericalVal result = {0};
+bool isValue(struct Value* val, enum ValueType val_type) {
+    return val->val_type == val_type;
+}
 
-    if (left_val.return_val == RET_FLOAT || right_val.return_val == RET_FLOAT)
-        result.return_val = RET_FLOAT;
+bool isNumericVal(struct Value* val) {
+    return val->val_type == VAL_INT || val->val_type == VAL_FLOAT;
+}
+
+struct Value interpretBinaryNode(struct BinaryNode* bin_node) {
+    struct Value left_val = interpret(bin_node->left);
+    struct Value right_val = interpret(bin_node->right);
+    struct Value result = {0};
+
+    if (isValue(&left_val, VAL_FLOAT) || isValue(&right_val, VAL_FLOAT))
+        result.val_type = VAL_FLOAT;
     else
-        result.return_val = RET_INT;
+        result.val_type = VAL_INT;
 
     if (bin_node->op_len == 1) {
         switch (bin_node->op[0]) {
@@ -26,15 +34,22 @@ struct NumericalVal interpretBinaryNode(struct BinaryNode* bin_node) {
                 break;
         }
     } else {
-        result.return_val = RET_FLOAT;
+        if (!isNumericVal(&left_val) || !isNumericVal(&right_val)) {
+            printf(
+                "Binary operation '**' not supported between <Placeholder> and "
+                "<Placeholder>");
+            exit(1);
+        }
+
+        result.val_type = VAL_FLOAT;
         float arg1;
         float arg2;
 
-        arg1 = (left_val.return_val == RET_INT) ? (float)left_val.as.i
-                                                : left_val.as.f;
+        arg1 = (left_val.val_type == VAL_INT) ? (float)left_val.as.i
+                                              : left_val.as.f;
 
-        arg2 = (right_val.return_val == RET_INT) ? (float)right_val.as.i
-                                                 : right_val.as.f;
+        arg2 = (right_val.val_type == VAL_INT) ? (float)right_val.as.i
+                                               : right_val.as.f;
 
         result.as.f = powf(arg1, arg2);
     }
@@ -42,8 +57,8 @@ struct NumericalVal interpretBinaryNode(struct BinaryNode* bin_node) {
     return result;
 }
 
-struct NumericalVal interpretUnaryNode(struct UnaryNode* un_node) {
-    struct NumericalVal value = interpret(un_node->operand);
+struct Value interpretUnaryNode(struct UnaryNode* un_node) {
+    struct Value value = interpret(un_node->operand);
 
     switch (un_node->op) {
         case '+':
@@ -53,7 +68,7 @@ struct NumericalVal interpretUnaryNode(struct UnaryNode* un_node) {
             APPLY_UNARY_NUMERIC_OP(value, -);
             break;
         case '~':
-            if (value.return_val != RET_INT) {
+            if (value.val_type != VAL_INT) {
                 exit(1);
             }
 
@@ -63,22 +78,38 @@ struct NumericalVal interpretUnaryNode(struct UnaryNode* un_node) {
     return value;
 }
 
-struct NumericalVal interpret(struct Node* node) {
+struct Value interpret(struct Node* node) {
     switch (node->kind) {
         case NODE_INT:
             struct IntNode* int_n = (struct IntNode*)node;
-            struct NumericalVal int_val = {.as.i = int_n->value,
-                                           .return_val = RET_INT};
+            struct Value int_val = {.as.i = int_n->value, .val_type = VAL_INT};
 
             return int_val;
             break;
         case NODE_FLOAT:
             struct FloatNode* float_n = (struct FloatNode*)node;
-            struct NumericalVal float_val = {.as.f = float_n->value,
-                                             .return_val = RET_FLOAT};
+            struct Value float_val = {.as.f = float_n->value,
+                                      .val_type = VAL_FLOAT};
 
             return float_val;
             break;
+        case NODE_BOOLEAN:
+            struct BooleanNode* bool_n = (struct BooleanNode*)node;
+            struct Value boolean_val = {.as.b = bool_n->value,
+                                        .val_type = VAL_BOOL};
+            return boolean_val;
+            break;
+        case NODE_STRING:
+            struct StringNode* str_n = (struct StringNode*)node;
+            struct ObjString* str = malloc(sizeof(struct ObjString));
+
+            str->base.kind = OBJ_STR;
+            str->string = str_n->string;
+            str->size = str_n->size;
+
+            struct Value str_val = {.as.obj = &str->base, .val_type = VAL_OBJ};
+
+            return str_val;
         case NODE_UNARY:
             struct UnaryNode* un_n = (struct UnaryNode*)node;
             return interpretUnaryNode(un_n);
@@ -87,9 +118,9 @@ struct NumericalVal interpret(struct Node* node) {
             return interpretBinaryNode(bin_n);
         case NODE_EXPRESSION:
             struct ExpressionNode* exp_n = (struct ExpressionNode*)node;
-            interpret(exp_n->operations);
+            return interpret(exp_n->operations);
         case NODE_GROUPING:
             struct GroupingNode* grp_n = (struct GroupingNode*)node;
-            interpret(grp_n->expr);
+            return interpret(grp_n->expr);
     }
 }

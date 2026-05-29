@@ -5,12 +5,15 @@
 
 #include "lexer.h"
 #include "model.h"
+#include "source.h"
 
 struct Parser {
     struct TokenDA* tokens;
+    struct SourceFile* source;
     uint64_t current_token;
 };
 
+bool parserAtEnd(struct Parser* p);
 struct Token* parserAdvance(struct Parser* p);
 struct Token* parserPeek(struct Parser* p);
 struct Token* getPreviousToken(struct Parser* p);
@@ -27,7 +30,8 @@ struct Node* parseAddition(struct Parser* p, struct Arena* arena);
 struct Node* parseExpression(struct Parser* p, struct Arena* arena);
 struct Node* parse(struct Parser* p, struct Arena* arena);
 
-void initParser(struct Parser* p, struct TokenDA* tokens);
+void initParser(struct Parser* p, struct TokenDA* tokens,
+                struct SourceFile* source);
 
 void printAST(struct Node* ast);
 

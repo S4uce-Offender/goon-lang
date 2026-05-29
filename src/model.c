@@ -6,19 +6,23 @@ char* getBracketColor(uint8_t hierarchy) {
     return bracket_colors[hierarchy % NUM_COLORS];
 }
 
-struct IntNode* createIntNode(struct Arena* arena, int value) {
+struct IntNode* createIntNode(struct Arena* arena, struct Token* tok,
+                              int value) {
     struct IntNode* node = arenaAlloc(arena, sizeof(struct IntNode));
 
     node->base.kind = NODE_INT;
+    node->tok = tok;
     node->value = value;
 
     return node;
 }
 
-struct FloatNode* createFloatNode(struct Arena* arena, float value) {
+struct FloatNode* createFloatNode(struct Arena* arena, struct Token* tok,
+                                  float value) {
     struct FloatNode* node = arenaAlloc(arena, sizeof(struct IntNode));
 
     node->base.kind = NODE_FLOAT;
+    node->tok = tok;
     node->value = value;
 
     return node;
@@ -162,6 +166,53 @@ void printGroupingNode(struct GroupingNode* g_node, uint8_t hierarchy) {
     printf("%s}%s", hierarchy_color, COLOR_RESET);
 }
 
+struct BooleanNode* createBooleanNode(struct Arena* arena, struct Token* tok,
+                                      bool value) {
+    struct BooleanNode* node = arenaAlloc(arena, sizeof(struct BooleanNode));
+
+    node->base.kind = NODE_BOOLEAN;
+    node->tok = tok;
+    node->value = value;
+
+    return node;
+}
+
+void printBooleanNode(struct BooleanNode* bool_node, uint8_t hierarchy) {
+    char* hierarchy_color = getBracketColor(hierarchy);
+
+    printf("%sBoolean%s%s{%s ", hierarchy_color, COLOR_RESET, hierarchy_color,
+           COLOR_RESET);
+
+    if (bool_node->value)
+        printf("true");
+    else
+        printf("false");
+
+    printf("%s }%s", hierarchy_color, COLOR_RESET);
+}
+
+struct StringNode* createStringNode(struct Arena* arena, struct Token* tok,
+                                    char* string, uint64_t size) {
+    struct StringNode* node = arenaAlloc(arena, sizeof(struct StringNode));
+
+    node->base.kind = NODE_STRING;
+    node->tok = tok;
+    node->string = string;
+    node->size = size;
+
+    return node;
+}
+
+void printStringNode(struct StringNode* str_node, uint8_t hierarchy) {
+    char* hierarchy_color = getBracketColor(hierarchy);
+
+    printf("%sString%s%s{%s ", hierarchy_color, COLOR_RESET, hierarchy_color,
+           COLOR_RESET);
+
+    printf("%.*s", (int)str_node->size, str_node->string);
+    printf("%s }%s", hierarchy_color, COLOR_RESET);
+}
+
 void printTabs(uint8_t hierarchy) {
     for (int i = 0; i < hierarchy; i++) printf("\t");
 }
@@ -176,11 +227,20 @@ void printNode(struct Node* n, uint8_t hierarchy) {
         case NODE_UNARY:
             printUnaryNode((struct UnaryNode*)n, hierarchy);
             break;
+        case NODE_BOOLEAN:
+            printBooleanNode((struct BooleanNode*)n, hierarchy);
+            break;
+        case NODE_STRING:
+            printStringNode((struct StringNode*)n, hierarchy);
+            break;
         case NODE_EXPRESSION:
             printExpressionNode((struct ExpressionNode*)n, hierarchy);
             break;
         case NODE_GROUPING:
             printGroupingNode((struct GroupingNode*)n, hierarchy);
+            break;
+        default:
+            printf("Unkown type");
             break;
     }
 }

@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "errors.h"
+#include "source.h"
 
 #define HASH_TABLE_SIZE 257
 #define HASH 54
@@ -49,11 +50,14 @@ enum TokenType {
     TOK_FUNC,
     TOK_NULL,
     TOK_END,
+    TOK_EOF,
     TOK_UNKNOWN
 };
 
 struct Token {
     char* lexeme;
+    uint64_t line_start;
+    uint64_t offset;
     uint64_t line;
     uint8_t len;
     enum TokenType token_type;
@@ -69,8 +73,8 @@ struct TokenDA {
 
 struct Lexer {
     struct TokenDA tokens;
-    char* source;
-    uint64_t source_len;
+    struct SourceFile* source;
+
     uint64_t line;
     uint64_t start_char;
     uint64_t current_char;
@@ -118,12 +122,11 @@ uint64_t getKeywordType(char* string);
 char* createLexeme(struct Lexer* lex, uint8_t lexeme_size);
 void tokenize(struct Lexer* lex);
 
-void initLexerDefault(struct Lexer* lex, char* text_source,
-                      uint64_t source_len);
-void initLexerManual(struct Lexer* lex, char* text_source, uint64_t source_len,
+void initLexerDefault(struct Lexer* lex, struct SourceFile* source);
+void initLexerManual(struct Lexer* lex, struct SourceFile* source,
                      uint64_t tok_arr_capacity);
 
-#define GET_MACRO(_1, _2, _3, _4, NAME, ...) NAME
+#define GET_MACRO(_1, _2, _3, NAME, ...) NAME
 
 #define initLexer(...) \
     GET_MACRO(__VA_ARGS__, initLexerManual, initLexerDefault)(__VA_ARGS__)

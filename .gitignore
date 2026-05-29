@@ -3,3 +3,4 @@
 .clang-format
 callgrind*
 gooner
+c_tests.c

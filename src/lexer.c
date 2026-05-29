@@ -33,59 +33,65 @@ char* tokenTypeToString(enum TokenType type) {
         case TOK_NOT:
             return "NOT";
         case TOK_ASSIGNMENT:
-            return "ASSIGNMENT OP";
+            return "ASSIGNMENT";
         case TOK_GREATER:
             return "GREATER";
         case TOK_GREATER_EQUALS:
-            return "GREATER EQUALS";
+            return "GREATER_EQUALS";
         case TOK_LESS:
             return "LESS";
         case TOK_LESS_EQUALS:
-            return "LESS EQUALS";
+            return "LESS_EQUALS";
         case TOK_EQUALS:
             return "EQUALS";
         case TOK_NOT_EQUALS:
-            return "NOT EQUALS";
+            return "NOT_EQUALS";
         case TOK_LBRACE:
-            return "LEFT BRACE";
+            return "LEFT_BRACE";
         case TOK_RBRACE:
-            return "RIGHT BRACE";
+            return "RIGHT_BRACE";
         case TOK_IF:
-            return "TOK_IF";
+            return "IF";
         case TOK_ELSE:
-            return "TOK_ELSE";
+            return "ELSE";
         case TOK_THEN:
-            return "TOK_THEN";
+            return "THEN";
         case TOK_TRUE:
-            return "TOK_TRUE";
+            return "TRUE";
         case TOK_FALSE:
-            return "TOK_FALSE";
+            return "FALSE";
         case TOK_AND:
-            return "TOK_AND";
+            return "AND";
         case TOK_OR:
-            return "TOK_OR";
+            return "OR";
         case TOK_WHILE:
-            return "TOK_WHILE";
+            return "WHILE";
         case TOK_DO:
-            return "TOK_DO";
+            return "DO";
         case TOK_FUNC:
-            return "TOK_FUNC";
+            return "FUNC";
         case TOK_NULL:
-            return "TOK_NULL";
+            return "NULL";
         case TOK_END:
-            return "TOK_END";
+            return "END";
+        case TOK_EOF:
+            return "EOF";
         case TOK_UNKNOWN:
             return "UNKNOWN";
     }
+
+    return "UNKNOWN";
 }
+
 void printToken(struct Lexer* lex, struct Token* token) {
-    printf("(%s, %.*s, %ld)\n", tokenTypeToString(token->token_type),
+    printf("(%s, %.*s, %lu)\n", tokenTypeToString(token->token_type),
            (int)token->len, token->lexeme, token->line);
 }
 
 void daAppend(struct TokenDA* arr, struct Token tok) {
-    if (arr->size == arr->capacity) {
+    if (arr->size >= arr->capacity) {
         arr->capacity *= 2;
+
         arr->data = realloc(arr->data, arr->capacity * sizeof(struct Token));
     }
 
@@ -93,118 +99,133 @@ void daAppend(struct TokenDA* arr, struct Token tok) {
 }
 
 void daInit(struct TokenDA* arr, uint64_t tok_arr_capacity) {
-    // Min array size must be 1024
     if (tok_arr_capacity < 1024) tok_arr_capacity = 1024;
 
     arr->data = calloc(tok_arr_capacity, sizeof(struct Token));
-    arr->daAppend = daAppend;
+
     arr->size = 0;
     arr->capacity = tok_arr_capacity;
+    arr->daAppend = daAppend;
 }
 
 char advance(struct Lexer* lex) {
-    char ch = lex->source[lex->current_char++];
-    return ch;
+    return lex->source->text[lex->current_char++];
 }
 
 char peek(struct Lexer* lex) {
-    if (lex->current_char >= lex->source_len) return '\0';
+    if (lex->current_char >= lex->source->length) return '\0';
 
-    return lex->source[lex->current_char];
+    return lex->source->text[lex->current_char];
 }
 
 char lookahead(struct Lexer* lex, uint8_t n) {
-    if (lex->current_char + n >= lex->source_len) return '\0';
-    return lex->source[lex->current_char + n];
+    if (lex->current_char + n >= lex->source->length) return '\0';
+
+    return lex->source->text[lex->current_char + n];
 }
 
 bool match(struct Lexer* lex, char expected) {
-    if (lex->current_char >= lex->source_len) return false;
-    if (lex->source[lex->current_char] != expected) return false;
+    if (lex->current_char >= lex->source->length) return false;
+
+    if (lex->source->text[lex->current_char] != expected) return false;
 
     lex->current_char++;
     return true;
 }
 
 bool isWhitespace(struct Lexer* lex) {
-    if (lex->source[lex->current_char] == ' ')
-        return true;
-    else
-        return false;
-}
+    char ch = peek(lex);
 
-void skipWhitespace(struct Lexer* lex) {
-    while (isWhitespace(lex)) {
-        lex->current_char++;
-    }
+    return (ch == ' ' || ch == '\t' || ch == '\r');
 }
 
 bool isDigit(char ch) { return (ch >= '0' && ch <= '9'); }
 
 bool isAlpha(char ch) {
-    return ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'));
+    return ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
 }
 
-bool isAlnum(char ch) { return (isAlpha(ch) || isDigit(ch)); }
+bool isAlnum(char ch) { return isAlpha(ch) || isDigit(ch); }
+
+void skipWhitespace(struct Lexer* lex) {
+    while (isWhitespace(lex)) lex->current_char++;
+}
 
 void consumeNum(struct Lexer* lex) {
     uint8_t lex_len = 1;
-    while (isDigit(lex->peek(lex))) {
-        lex->advance(lex);
+
+    while (isDigit(peek(lex))) {
+        advance(lex);
         lex_len++;
     }
 
-    if (lex->peek(lex) == '.' && isDigit(lex->lookahead(lex, 1))) {
-        lex->advance(lex);
+    enum TokenType type = TOK_INT;
+
+    if (peek(lex) == '.' && isDigit(lookahead(lex, 1))) {
+        type = TOK_FLOAT;
+
+        advance(lex);
         lex_len++;
-        while (isDigit(lex->peek(lex))) {
-            lex->advance(lex);
+
+        while (isDigit(peek(lex))) {
+            advance(lex);
             lex_len++;
         }
-        lex->tokens.daAppend(
-            &lex->tokens,
-            (struct Token){.lexeme = lex->source + lex->start_char,
-                           .len = lex_len,
-                           .token_type = TOK_FLOAT,
-                           .line = lex->line});
-    } else {
-        lex->tokens.daAppend(
-            &lex->tokens,
-            (struct Token){.lexeme = lex->source + lex->start_char,
-                           .len = lex_len,
-                           .token_type = TOK_INT,
-                           .line = lex->line});
     }
+
+    lex->tokens.daAppend(
+        &lex->tokens,
+        (struct Token){
+            .lexeme = lex->source->text + lex->start_char,
+
+            .line_start = lex->where_firstchar,
+            .offset = (lex->current_char - lex->where_firstchar - 1),
+
+            .line = lex->line,
+            .len = lex_len,
+            .token_type = type,
+        });
 }
 
 void consumeString(struct Lexer* lex) {
     uint8_t lex_len = 0;
-    while (lex->peek(lex) != '"' && !(lex->current_char >= lex->source_len)) {
-        lex->advance(lex);
+
+    while (peek(lex) != '"' && lex->current_char < lex->source->length) {
+        if (peek(lex) == '\n') lex->line++;
+
+        advance(lex);
         lex_len++;
     }
 
-    if (lex->current_char >= lex->source_len) {
-        perror("Unterminated string");
-        freeLexer(lex);
-        raise(SIGINT);
+    if (lex->current_char >= lex->source->length) {
+        lexerThrowError(LEX_ERR_UNTERMINATED_STR, "Unterminated string",
+                        lex->source, lex->line, lex->where_firstchar,
+                        (lex->current_char - lex->where_firstchar - 1));
+        return;
     }
 
-    lex->advance(lex);
-    lex->tokens.daAppend(&lex->tokens,
-                         (struct Token){.lexeme = lex->source + lex->start_char,
-                                        .len = lex_len,
-                                        .token_type = TOK_STRING,
-                                        .line = lex->line});
+    advance(lex);
+
+    lex->tokens.daAppend(
+        &lex->tokens,
+        (struct Token){
+            .lexeme = lex->source->text + lex->start_char + 1,
+
+            .line_start = lex->where_firstchar,
+            .offset = (lex->current_char - lex->where_firstchar - 1),
+
+            .line = lex->line,
+            .len = lex_len,
+            .token_type = TOK_STRING,
+        });
 }
 
 uint64_t djb2Hash(char* string) {
     uint64_t hash = 5381;
+
     int c;
 
-    while ((c = *string++)) {
-        hash = ((hash << 5) + hash) + c;
-    }
+    while ((c = *string++)) hash = ((hash << 5) + hash) + c;
 
     return hash;
 }
@@ -215,17 +236,15 @@ uint64_t murmurOOATHash(char* string, uint32_t h) {
         h *= 0x5bd1e995;
         h ^= h >> 15;
     }
+
     return h;
 }
 
 void hashKeywords() {
-    uint8_t keyword_size = sizeof(keywords) / sizeof(keywords[0]);
+    uint64_t keyword_count = sizeof(keywords) / sizeof(keywords[0]);
 
-    for (int i = 0; i < keyword_size; i++) {
+    for (uint64_t i = 0; i < keyword_count; i++) {
         uint64_t index = murmurOOATHash(keywords[i], HASH) % HASH_TABLE_SIZE;
-        if (hash_table[index] > 0) {
-            printf("Collision in hash table!");
-        }
 
         hash_table[index] = keyword_type[i];
     }
@@ -237,249 +256,233 @@ uint64_t getKeywordType(char* string) {
     return hash_table[index];
 }
 
-void consumeIdentifier(struct Lexer* lex) {
-    char* lexeme;
-    uint64_t keyword_type;
+char* createLexeme(struct Lexer* lex, uint8_t lexeme_size) {
+    char* lexeme = malloc(lexeme_size + 1);
 
+    strncpy(lexeme, lex->source->text + lex->start_char, lexeme_size);
+
+    lexeme[lexeme_size] = '\0';
+
+    return lexeme;
+}
+
+void consumeIdentifier(struct Lexer* lex) {
     uint8_t lex_len = 1;
-    while (isAlnum(lex->peek(lex)) || lex->peek(lex) == '_') {
-        lex->advance(lex);
+
+    while (isAlnum(peek(lex)) || peek(lex) == '_') {
+        advance(lex);
         lex_len++;
     }
 
-    lexeme = createLexeme(lex, lex_len);
-    keyword_type = getKeywordType(lexeme);
+    char* lexeme = createLexeme(lex, lex_len);
 
-    if (keyword_type > 0) {
-        lex->tokens.daAppend(
-            &lex->tokens,
-            (struct Token){.lexeme = lex->source + lex->start_char,
-                           .len = lex_len,
-                           .token_type = keyword_type,
-                           .line = lex->line});
-    } else {
-        lex->tokens.daAppend(
-            &lex->tokens,
-            (struct Token){.lexeme = lex->source + lex->start_char,
-                           .len = lex_len,
-                           .token_type = TOK_IDENTIFIER,
-                           .line = lex->line});
-    }
+    uint64_t keyword = getKeywordType(lexeme);
+
+    lex->tokens.daAppend(
+        &lex->tokens,
+        (struct Token){
+            .lexeme = lex->source->text + lex->start_char,
+
+            .line_start = lex->where_firstchar,
+            .offset = (lex->current_char - lex->where_firstchar - 1),
+
+            .line = lex->line,
+            .len = lex_len,
+
+            .token_type = (keyword > 0) ? keyword : TOK_IDENTIFIER,
+        });
 
     free(lexeme);
 }
 
-char* createLexeme(struct Lexer* lex, uint8_t lexeme_len) {
-    char* lexeme = malloc(lexeme_len + 1);
-    strncpy(lexeme, lex->source + lex->start_char, lexeme_len);
-    lexeme[lexeme_len] = '\0';
-    return lexeme;
-}
-
 void tokenize(struct Lexer* lex) {
-    uint32_t current_col = -1;
-    uint32_t current_line_len = 0;
-
-    while (lex->current_char < lex->source_len) {
+    while (lex->current_char < lex->source->length) {
         skipWhitespace(lex);
-        lex->start_char = lex->current_char;
-        current_col++;
-        current_line_len++;
 
-        char ch = lex->advance(lex);
+        lex->start_char = lex->current_char;
+
+        char ch = advance(lex);
 
         uint8_t lex_len = 1;
 
         if (isDigit(ch)) {
             consumeNum(lex);
-        } else if (isAlpha(ch) || ch == '_') {
+            continue;
+        }
+
+        if (isAlpha(ch) || ch == '_') {
             consumeIdentifier(lex);
-        } else {
-            switch (ch) {
-                case '"':
-                    lex->start_char++;
-                    consumeString(lex);
-                    break;
+            continue;
+        }
 
-                case '+':
+        switch (ch) {
+            case '"':
+                consumeString(lex);
+                break;
+
+            case '+':
+                lex->tokens.daAppend(
+                    &lex->tokens,
+                    (struct Token){
+                        .lexeme = lex->source->text + lex->start_char,
+
+                        .line_start = lex->where_firstchar,
+                        .offset =
+                            (lex->current_char - lex->where_firstchar - 1),
+
+                        .line = lex->line,
+                        .len = 1,
+                        .token_type = TOK_PLUS,
+                    });
+                break;
+
+            case '-':
+                lex->tokens.daAppend(
+                    &lex->tokens,
+                    (struct Token){
+                        .lexeme = lex->source->text + lex->start_char,
+
+                        .line_start = lex->where_firstchar,
+                        .offset =
+                            (lex->current_char - lex->where_firstchar - 1),
+
+                        .line = lex->line,
+                        .len = 1,
+                        .token_type = TOK_MINUS,
+                    });
+                break;
+
+            case '*':
+                if (match(lex, '*')) {
+                    lex_len = 2;
+
                     lex->tokens.daAppend(
                         &lex->tokens,
-                        (struct Token){.lexeme = lex->source + lex->start_char,
-                                       .len = lex_len,
-                                       .token_type = TOK_PLUS,
-                                       .line = lex->line});
-                    break;
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
 
-                case '-':
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+
+                            .line = lex->line,
+                            .len = lex_len,
+                            .token_type = TOK_POW,
+                        });
+
+                } else {
                     lex->tokens.daAppend(
                         &lex->tokens,
-                        (struct Token){.lexeme = lex->source + lex->start_char,
-                                       .len = lex_len,
-                                       .token_type = TOK_MINUS,
-                                       .line = lex->line});
-                    break;
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
 
-                case '*':
-                    if (lex->match(lex, '*')) {
-                        lex_len++;
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_POW,
-                                .line = lex->line});
-                    } else {
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_TIMES,
-                                .line = lex->line});
-                    }
-                    break;
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
 
-                case '/':
-                    lex->tokens.daAppend(
-                        &lex->tokens,
-                        (struct Token){.lexeme = lex->source + lex->start_char,
-                                       .len = lex_len,
-                                       .token_type = TOK_DIV,
-                                       .line = lex->line});
-                    break;
+                            .line = lex->line,
+                            .len = 1,
+                            .token_type = TOK_TIMES,
+                        });
+                }
 
-                case '(':
-                    lex->tokens.daAppend(
-                        &lex->tokens,
-                        (struct Token){.lexeme = lex->source + lex->start_char,
-                                       .len = lex_len,
-                                       .token_type = TOK_LBRACE,
-                                       .line = lex->line});
-                    break;
+                break;
 
-                case ')':
-                    lex->tokens.daAppend(
-                        &lex->tokens,
-                        (struct Token){.lexeme = lex->source + lex->start_char,
-                                       .len = lex_len,
-                                       .token_type = TOK_RBRACE,
-                                       .line = lex->line});
-                    break;
+            case '/':
+                lex->tokens.daAppend(
+                    &lex->tokens,
+                    (struct Token){
+                        .lexeme = lex->source->text + lex->start_char,
 
-                case '\n':
-                    lex->line++;
-                    current_col = 0;
-                    lex->where_firstchar = lex->current_char;
-                    break;
+                        .line_start = lex->where_firstchar,
+                        .offset =
+                            (lex->current_char - lex->where_firstchar - 1),
 
-                case '#':
-                    while (lex->peek(lex) != '\n') lex->advance(lex);
-                    break;
+                        .line = lex->line,
+                        .len = 1,
+                        .token_type = TOK_DIV,
+                    });
 
-                case '<':
-                    if (lex->match(lex, '=')) {
-                        lex_len++;
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_LESS_EQUALS,
-                                .line = lex->line});
-                        lex->advance(lex);
-                    } else {
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_LESS,
-                                .line = lex->line});
-                    }
-                    break;
+                break;
 
-                case '>':
-                    if (lex->match(lex, '=')) {
-                        lex_len++;
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_GREATER_EQUALS,
-                                .line = lex->line});
-                        lex->advance(lex);
-                    } else {
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_GREATER,
-                                .line = lex->line});
-                    }
-                    break;
+            case '(':
+                lex->tokens.daAppend(
+                    &lex->tokens,
+                    (struct Token){
+                        .lexeme = lex->source->text + lex->start_char,
 
-                case '~':
-                    if (lex->match(lex, '=')) {
-                        lex_len++;
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_NOT_EQUALS,
-                                .line = lex->line});
-                    } else {
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_NOT,
-                                .line = lex->line});
-                    }
-                    break;
+                        .line_start = lex->where_firstchar,
+                        .offset =
+                            (lex->current_char - lex->where_firstchar - 1),
 
-                case '=':
-                    if (lex->match(lex, '=')) {
-                        lex_len++;
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_EQUALS,
-                                .line = lex->line});
-                    } else {
-                        lex->tokens.daAppend(
-                            &lex->tokens,
-                            (struct Token){
-                                .lexeme = lex->source + lex->start_char,
-                                .len = lex_len,
-                                .token_type = TOK_ASSIGNMENT,
-                                .line = lex->line});
-                    }
-                    break;
+                        .line = lex->line,
+                        .len = 1,
+                        .token_type = TOK_LBRACE,
+                    });
 
-                default:
-                    char error_msg[20];
-                    sprintf(error_msg, "Unknown symbol '%c'", ch);
+                break;
 
-                    lexerThrowError(LEX_ERR_UNKNOWN_SYMBOL, error_msg, lex);
+            case ')':
+                lex->tokens.daAppend(
+                    &lex->tokens,
+                    (struct Token){
+                        .lexeme = lex->source->text + lex->start_char,
 
-                    break;
+                        .line_start = lex->where_firstchar,
+                        .offset =
+                            (lex->current_char - lex->where_firstchar - 1),
+
+                        .line = lex->line,
+                        .len = 1,
+                        .token_type = TOK_RBRACE,
+                    });
+
+                break;
+
+            case '\n':
+                lex->line++;
+                lex->where_firstchar = lex->current_char;
+                break;
+
+            case '#':
+                while (peek(lex) != '\n' && peek(lex) != '\0') {
+                    advance(lex);
+                }
+
+                break;
+
+            default: {
+                char error_msg[64];
+
+                sprintf(error_msg, "Unknown symbol '%c'", ch);
+
+                lexerThrowError(LEX_ERR_UNKNOWN_SYMBOL, error_msg, lex->source,
+                                lex->line, lex->where_firstchar,
+                                (lex->current_char - lex->where_firstchar - 1));
+
+                break;
             }
         }
     }
+
+    lex->tokens.daAppend(
+        &lex->tokens, (struct Token){
+                          .lexeme = lex->source->text + lex->current_char,
+
+                          .line_start = lex->where_firstchar,
+                          .offset = (lex->current_char - lex->where_firstchar),
+
+                          .line = lex->line,
+                          .len = 0,
+                          .token_type = TOK_EOF,
+                      });
 }
 
-void initLexerDefault(struct Lexer* lex, char* text_source,
-                      uint64_t source_len) {
+void initLexerDefault(struct Lexer* lex, struct SourceFile* source) {
     hashKeywords();
-    lex->source = text_source;
-    lex->source_len = source_len;
+
+    lex->source = source;
+
     lex->line = 1;
     lex->start_char = 0;
     lex->current_char = 0;
@@ -491,27 +494,24 @@ void initLexerDefault(struct Lexer* lex, char* text_source,
     lex->peek = peek;
     lex->lookahead = lookahead;
     lex->match = match;
+
+    lex->isWhitespace = isWhitespace;
+    lex->isDigit = isDigit;
+    lex->isAlpha = isAlpha;
+    lex->isAlnum = isAlnum;
+
+    lex->skipWhitespace = skipWhitespace;
+
+    lex->consumeNum = consumeNum;
+
     lex->tokenize = tokenize;
 }
 
-void initLexerManual(struct Lexer* lex, char* text_source, uint64_t source_len,
+void initLexerManual(struct Lexer* lex, struct SourceFile* source,
                      uint64_t tok_arr_capacity) {
-    hashKeywords();
-
-    lex->source = text_source;
-    lex->source_len = source_len;
-    lex->line = 1;
-    lex->start_char = 0;
-    lex->current_char = 0;
-    lex->where_firstchar = 0;
+    initLexerDefault(lex, source);
 
     daInit(&lex->tokens, tok_arr_capacity);
-
-    lex->advance = advance;
-    lex->peek = peek;
-    lex->lookahead = lookahead;
-    lex->match = match;
-    lex->tokenize = tokenize;
 }
 
 void freeLexer(struct Lexer* lex) { free(lex->tokens.data); }

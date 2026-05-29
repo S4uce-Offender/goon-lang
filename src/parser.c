@@ -1,5 +1,9 @@
 #include "parser.h"
 
+bool parserAtEnd(struct Parser* p) {
+    return parserPeek(p)->token_type == TOK_EOF;
+}
+
 struct Token* parserAdvance(struct Parser* p) {
     struct Token* token = &p->tokens->data[p->current_token];
     p->current_token++;
@@ -42,36 +46,66 @@ bool matchToken(struct Parser* p, enum TokenType t) {
 struct Node* parsePrimary(struct Parser* p, struct Arena* arena) {
     if (matchToken(p, TOK_INT)) {
         struct Token* tok = getPreviousToken(p);
-        char* int_lexeme = malloc(tok->len + 1);
-        strncpy(int_lexeme, tok->lexeme, tok->len);
-        int_lexeme[tok->len] = '\0';
+
+        char saved = tok->lexeme[tok->len];
+        tok->lexeme[tok->len] = '\0';
 
         struct IntNode* n =
-            createIntNode(arena, atoi(getPreviousToken(p)->lexeme));
+            createIntNode(arena, tok, atoi(getPreviousToken(p)->lexeme));
 
-        free(int_lexeme);
+        tok->lexeme[tok->len] = saved;
         return &n->base;
-    } else if (matchToken(p, TOK_FLOAT)) {
+    }
+    if (matchToken(p, TOK_FLOAT)) {
         struct Token* tok = getPreviousToken(p);
 
         char saved = tok->lexeme[tok->len];
         tok->lexeme[tok->len] = '\0';
 
-        struct FloatNode* n = createFloatNode(arena, strtof(tok->lexeme, NULL));
+        struct FloatNode* n =
+            createFloatNode(arena, tok, strtof(tok->lexeme, NULL));
 
         tok->lexeme[tok->len] = saved;
         return &n->base;
-    } else if (matchToken(p, TOK_LBRACE)) {
+    }
+    if (matchToken(p, TOK_TRUE) || matchToken(p, TOK_FALSE)) {
+        struct Token* tok = getPreviousToken(p);
+        bool value = (tok->token_type == TOK_TRUE) ? true : false;
+
+        struct BooleanNode* n = createBooleanNode(arena, tok, value);
+
+        return &n->base;
+    }
+    if (matchToken(p, TOK_STRING)) {
+        struct Token* tok = getPreviousToken(p);
+
+        struct StringNode* n =
+            createStringNode(arena, tok, tok->lexeme, tok->len);
+
+        return &n->base;
+    }
+    if (matchToken(p, TOK_LBRACE)) {
+        struct Token* lbrace_tok = getPreviousToken(p);
+
         struct Node* expr = parseExpression(p, arena);
         if (!matchToken(p, TOK_RBRACE)) {
-            printf("Error: ')' expected.");
-            exit(12);
+            parserThrowError(PRSR_ERR_MISSING_RBRACE,
+                             "Expected ')' before end of line", p->source,
+                             lbrace_tok->line, lbrace_tok->line_start,
+                             lbrace_tok->offset);
         } else {
             struct GroupingNode* n = createGroupingNode(arena, expr);
 
             return &n->base;
         }
     }
+
+    struct Token* tok = parserPeek(p);
+
+    parserThrowError(PRSR_ERR_UNEXPECTED_TOKEN, "Unexpected token", p->source,
+                     tok->line, tok->line_start, tok->offset);
+
+    return NULL;
 }
 
 struct Node* parsePower(struct Parser* p, struct Arena* arena) {
@@ -144,12 +178,24 @@ struct Node* parseExpression(struct Parser* p, struct Arena* arena) {
 struct Node* parse(struct Parser* p, struct Arena* arena) {
     struct Node* ast = parseExpression(p, arena);
 
+    if (!parserAtEnd(p)) {
+        if (matchToken(p, TOK_RBRACE)) {
+            struct Token* tok = getPreviousToken(p);
+
+            parserThrowError(PRSR_ERR_MISSING_LBRACE,
+                             "Missing '(' before ')' token", p->source,
+                             tok->line, tok->line_start, tok->offset);
+        }
+    }
+
     return ast;
 }
 
 void printAST(struct Node* ast) { printNode(ast, 0); }
 
-void initParser(struct Parser* p, struct TokenDA* tokens) {
+void initParser(struct Parser* p, struct TokenDA* tokens,
+                struct SourceFile* source) {
     p->tokens = tokens;
+    p->source = source;
     p->current_token = 0;
 }

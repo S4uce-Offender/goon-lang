@@ -35,7 +35,8 @@ int main(int argc, char** argv) {
     fread(text_buf, file_size, 1, file);
 
     struct Lexer lex = {0};
-    initLexer(&lex, text_buf, file_size);
+    struct SourceFile source = {.text = text_buf, .length = file_size};
+    initLexer(&lex, &source);
 
     lex.tokenize(&lex);
 
@@ -44,7 +45,7 @@ int main(int argc, char** argv) {
     }
 
     struct Parser p = {0};
-    initParser(&p, &lex.tokens);
+    initParser(&p, &lex.tokens, &source);
 
     struct Arena arena = {0};
     initArena(&arena, ARENA_SIZE);
@@ -57,9 +58,9 @@ int main(int argc, char** argv) {
         printf("\n\n");
     }
 
-    struct NumericalVal ret_val = interpret(ast);
+    struct Value ret_val = interpret(ast);
 
-    if (ret_val.return_val == RET_INT) {
+    if (ret_val.val_type == VAL_INT) {
         printf("%d", ret_val.as.i);
     } else {
         printf("%f", ret_val.as.f);
