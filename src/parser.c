@@ -125,7 +125,7 @@ struct Node* parsePower(struct Parser* p, struct Arena* arena) {
 
 struct Node* parseUnary(struct Parser* p, struct Arena* arena) {
     if (matchToken(p, TOK_PLUS) || matchToken(p, TOK_MINUS) ||
-        matchToken(p, TOK_NOT)) {
+        matchToken(p, TOK_BIT_NOT)) {
         struct Token* op = getPreviousToken(p);
         struct Node* operand = parseUnary(p, arena);
 
@@ -142,6 +142,7 @@ struct Node* parseFactor(struct Parser* p, struct Arena* arena) {
 
 struct Node* parseMultiplication(struct Parser* p, struct Arena* arena) {
     struct Node* expr = parseFactor(p, arena);
+
     while (matchToken(p, TOK_TIMES) || matchToken(p, TOK_DIV)) {
         struct Token* op = getPreviousToken(p);
         struct Node* right = parseFactor(p, arena);
@@ -156,6 +157,7 @@ struct Node* parseMultiplication(struct Parser* p, struct Arena* arena) {
 
 struct Node* parseAddition(struct Parser* p, struct Arena* arena) {
     struct Node* expr = parseMultiplication(p, arena);
+
     while (matchToken(p, TOK_PLUS) || matchToken(p, TOK_MINUS)) {
         struct Token* op = getPreviousToken(p);
         struct Node* right = parseMultiplication(p, arena);
@@ -168,9 +170,67 @@ struct Node* parseAddition(struct Parser* p, struct Arena* arena) {
     return expr;
 }
 
+struct Node* parseComparison(struct Parser* p, struct Arena* arena) {
+    struct Node* expr = parseAddition(p, arena);
+
+    while (matchToken(p, TOK_LESS) || matchToken(p, TOK_LESS_EQUALS) ||
+           matchToken(p, TOK_GREATER) || matchToken(p, TOK_GREATER_EQUALS) ||
+           matchToken(p, TOK_EQUALS) || matchToken(p, TOK_NOT_EQUALS)) {
+        struct Token* op = getPreviousToken(p);
+        struct Node* right = parseAddition(p, arena);
+        struct BinaryNode* bin_node =
+            createBinaryNode(arena, op->lexeme, op->len, expr, right);
+
+        expr = &bin_node->base;
+    }
+
+    return expr;
+}
+
+struct Node* parseBooleanOR(struct Parser* p, struct Arena* arena) {
+    struct Node* expr = parseComparison(p, arena);
+
+    while (matchToken(p, TOK_BOOL_OR)) {
+        struct Token* op = getPreviousToken(p);
+        struct Node* right = parseComparison(p, arena);
+        struct BinaryNode* bin_node =
+            createBinaryNode(arena, op->lexeme, 2, expr, right);
+
+        expr = &bin_node->base;
+    }
+
+    return expr;
+}
+
+struct Node* parseBooleanAND(struct Parser* p, struct Arena* arena) {
+    struct Node* expr = parseBooleanOR(p, arena);
+
+    while (matchToken(p, TOK_BOOL_AND)) {
+        struct Token* op = getPreviousToken(p);
+        struct Node* right = parseBooleanOR(p, arena);
+        struct BinaryNode* bin_node =
+            createBinaryNode(arena, op->lexeme, 2, expr, right);
+
+        expr = &bin_node->base;
+    }
+
+    return expr;
+}
+struct Node* parseBooleanNOT(struct Parser* p, struct Arena* arena) {
+    while (matchToken(p, TOK_BOOL_NOT)) {
+        struct Token* op = getPreviousToken(p);
+        struct Node* operand = parseBooleanNOT(p, arena);
+
+        struct UnaryNode* un_op = createUnaryNode(arena, *op->lexeme, operand);
+        return &un_op->base;
+    }
+
+    return parseBooleanAND(p, arena);
+}
+
 struct Node* parseExpression(struct Parser* p, struct Arena* arena) {
     struct ExpressionNode* expr =
-        createExpressionNode(arena, parseAddition(p, arena));
+        createExpressionNode(arena, parseBooleanNOT(p, arena));
 
     return &expr->base;
 }

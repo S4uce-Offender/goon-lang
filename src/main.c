@@ -58,12 +58,21 @@ int main(int argc, char** argv) {
         printf("\n\n");
     }
 
-    struct Value ret_val = interpret(ast);
+    struct Interpreter intrptr = {0};
+    initInterpreter(&intrptr, &source);
+
+    struct Value ret_val = interpret(&intrptr, ast, LEFT);
 
     if (ret_val.val_type == VAL_INT) {
         printf("%d", ret_val.as.i);
-    } else {
+    } else if (ret_val.val_type == VAL_FLOAT) {
         printf("%f", ret_val.as.f);
+    } else if (ret_val.val_type == VAL_BOOL) {
+        printf("%s", (ret_val.as.b) ? "true" : "false");
+    } else {
+        struct ObjString* string = (struct ObjString*)ret_val.as.obj;
+
+        printf("%.*s", (int)string->size, string->string);
     }
 
     printf("\n\n");

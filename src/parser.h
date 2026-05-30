@@ -27,6 +27,10 @@ struct Node* parseUnary(struct Parser* p, struct Arena* arena);
 struct Node* parseFactor(struct Parser* p, struct Arena* arena);
 struct Node* parseMultiplication(struct Parser* p, struct Arena* arena);
 struct Node* parseAddition(struct Parser* p, struct Arena* arena);
+struct Node* parseComparison(struct Parser* p, struct Arena* arena);
+struct Node* parseBooleanOR(struct Parser* p, struct Arena* arena);
+struct Node* parseBooleanAND(struct Parser* p, struct Arena* arena);
+struct Node* parseBooleanNOT(struct Parser* p, struct Arena* arena);
 struct Node* parseExpression(struct Parser* p, struct Arena* arena);
 struct Node* parse(struct Parser* p, struct Arena* arena);
 

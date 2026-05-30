@@ -1,64 +1,186 @@
 #include "interpreter.h"
 
-bool isValue(struct Value* val, enum ValueType val_type) {
+static inline bool isValueType(struct Value* val, enum ValueType val_type) {
     return val->val_type == val_type;
 }
 
-bool isNumericVal(struct Value* val) {
+static inline bool isObjectType(struct Value* val, enum ObjectType obj_type) {
+    if (val->val_type != VAL_OBJ) return false;
+    return val->as.obj->kind == obj_type;
+}
+static inline bool isNumericVal(struct Value* val) {
     return val->val_type == VAL_INT || val->val_type == VAL_FLOAT;
 }
 
-struct Value interpretBinaryNode(struct BinaryNode* bin_node) {
-    struct Value left_val = interpret(bin_node->left);
-    struct Value right_val = interpret(bin_node->right);
+static inline bool isBoolable(struct Value* val) {
+    return val->val_type == VAL_INT || val->val_type == VAL_BOOL;
+}
+
+static void handleUnsupportedBinOp(struct Interpreter* intrptr,
+                                   struct BinaryNode* bin_node) {
+    char err_msg[256];
+
+    snprintf(err_msg, sizeof(err_msg),
+             "Unsupported operation '%.*s' between %s token and %s token",
+             bin_node->op_len, bin_node->op,
+             tokenTypeToString(intrptr->tok_left->token_type),
+             tokenTypeToString(intrptr->tok_right->token_type));
+
+    size_t err_msg_len = strlen(err_msg);
+    err_msg[err_msg_len] = '\0';
+
+    interpreterThrowError(INTPTR_ERR_UNSUPPORTED_BIN_OP, err_msg,
+                          intrptr->source, intrptr->tok_left,
+                          intrptr->tok_right);
+}
+
+struct Value interpretBinaryNode(struct Interpreter* intrptr,
+                                 struct BinaryNode* bin_node) {
+    struct Value left_val = interpret(intrptr, bin_node->left, LEFT);
+    struct Value right_val = interpret(intrptr, bin_node->right, RIGHT);
     struct Value result = {0};
 
-    if (isValue(&left_val, VAL_FLOAT) || isValue(&right_val, VAL_FLOAT))
-        result.val_type = VAL_FLOAT;
-    else
-        result.val_type = VAL_INT;
+    result.val_type = (isValueType(&left_val, VAL_FLOAT) ||
+                       isValueType(&right_val, VAL_FLOAT))
+                          ? VAL_FLOAT
+                          : VAL_INT;
 
     if (bin_node->op_len == 1) {
         switch (bin_node->op[0]) {
             case '+':
-                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, +);
-                break;
-            case '-':
-                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, -);
-                break;
-            case '*':
-                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, *);
-                break;
-            case '/':
-                APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, /);
-                break;
+                if (isNumericVal(&left_val) && isNumericVal(&right_val))
+                    APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, +);
+
+                else if (isObjectType(&left_val, OBJ_STR) &&
+                         isObjectType(&right_val, OBJ_STR)) {
+                    result.val_type = VAL_OBJ;
+                    size_t size =
+                        intrptr->tok_left->len + intrptr->tok_right->len;
+
+                    char* str = malloc(size);
+                    strncpy(str, intrptr->tok_left->lexeme,
+                            intrptr->tok_left->len);
+                    strncpy(str + intrptr->tok_left->len,
+                            intrptr->tok_right->lexeme,
+                            intrptr->tok_right->len);
+
+                    struct ObjString* str_obj =
+                        malloc(sizeof(struct ObjString));
+
+                    str_obj->base.kind = OBJ_STR;
+                    str_obj->string = str;
+                    str_obj->size = size;
+
+                    result.as.obj = &str_obj->base;
+                } else {
+                    handleUnsupportedBinOp(intrptr, bin_node);
+                }
+        }
+
+        if (isValueType(&left_val, VAL_INT) &&
+            isValueType(&right_val, VAL_INT)) {
+            switch (bin_node->op[0]) {
+                case '-':
+                    APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, -);
+                    break;
+                case '*':
+                    APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, *);
+                    break;
+                case '/':
+                    APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, /);
+                    break;
+                case '<':
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, <);
+                    break;
+                case '>':
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, >);
+                    break;
+                default:
+                    handleUnsupportedBinOp(intrptr, bin_node);
+            }
         }
     } else {
-        if (!isNumericVal(&left_val) || !isNumericVal(&right_val)) {
-            printf(
-                "Binary operation '**' not supported between <Placeholder> and "
-                "<Placeholder>");
-            exit(1);
+        switch (bin_node->op[0]) {
+            case '*':
+                if (!isNumericVal(&left_val) || !isNumericVal(&right_val))
+                    break;
+
+                result.val_type = VAL_FLOAT;
+                float arg1;
+                float arg2;
+
+                arg1 = (left_val.val_type == VAL_INT) ? (float)left_val.as.i
+                                                      : left_val.as.f;
+
+                arg2 = (right_val.val_type == VAL_INT) ? (float)right_val.as.i
+                                                       : right_val.as.f;
+
+                result.as.f = powf(arg1, arg2);
+                break;
         }
 
-        result.val_type = VAL_FLOAT;
-        float arg1;
-        float arg2;
+        if (isValueType(&left_val, VAL_INT) &&
+            isValueType(&right_val, VAL_INT)) {
+            switch (bin_node->op[0]) {
+                case '<':
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, <=);
+                    return result;
+                case '>':
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, >=);
+                    return result;
+                case '=':
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, ==);
+                    return result;
+                case '!':
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, !=);
+                    return result;
+            }
+        }
 
-        arg1 = (left_val.val_type == VAL_INT) ? (float)left_val.as.i
-                                              : left_val.as.f;
+        if (isBoolable(&left_val) && isBoolable(&right_val)) {
+            switch (bin_node->op[0]) {
+                case '|':
+                    if (isValueType(&left_val, VAL_INT))
+                        left_val.as.b = left_val.as.i;
+                    if (isValueType(&right_val, VAL_INT))
+                        right_val.as.b = right_val.as.i;
 
-        arg2 = (right_val.val_type == VAL_INT) ? (float)right_val.as.i
-                                               : right_val.as.f;
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, ||);
+                    break;
+                case '&':
+                    if (isValueType(&left_val, VAL_INT))
+                        left_val.as.b = left_val.as.i;
+                    if (isValueType(&right_val, VAL_INT))
+                        right_val.as.b = right_val.as.i;
 
-        result.as.f = powf(arg1, arg2);
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, &&);
+                    break;
+                default:
+                    handleUnsupportedBinOp(intrptr, bin_node);
+            }
+        }
     }
 
     return result;
 }
 
-struct Value interpretUnaryNode(struct UnaryNode* un_node) {
-    struct Value value = interpret(un_node->operand);
+struct Value interpretUnaryNode(struct Interpreter* intrptr,
+                                struct UnaryNode* un_node) {
+    struct Value value = interpret(intrptr, un_node->operand, LEFT);
+
+    if (!isNumericVal(&value)) {
+        char err_msg[256];
+
+        snprintf(err_msg, sizeof(err_msg),
+                 "Unsupported operation with %s token",
+                 tokenTypeToString(intrptr->tok_left->token_type));
+
+        size_t err_msg_len = strlen(err_msg);
+        err_msg[err_msg_len] = '\0';
+
+        interpreterThrowError(INTPTR_ERR_UNSUPPORTED_UN_OP, err_msg,
+                              intrptr->source, intrptr->tok_left, NULL);
+    }
 
     switch (un_node->op) {
         case '+':
@@ -78,27 +200,44 @@ struct Value interpretUnaryNode(struct UnaryNode* un_node) {
     return value;
 }
 
-struct Value interpret(struct Node* node) {
+struct Value interpret(struct Interpreter* intrptr, struct Node* node,
+                       enum LeftOrRight left_or_right) {
     switch (node->kind) {
         case NODE_INT:
             struct IntNode* int_n = (struct IntNode*)node;
             struct Value int_val = {.as.i = int_n->value, .val_type = VAL_INT};
 
+            if (left_or_right == LEFT)
+                intrptr->tok_left = int_n->tok;
+            else
+                intrptr->tok_right = int_n->tok;
+
             return int_val;
-            break;
+
         case NODE_FLOAT:
             struct FloatNode* float_n = (struct FloatNode*)node;
             struct Value float_val = {.as.f = float_n->value,
                                       .val_type = VAL_FLOAT};
 
+            if (left_or_right == LEFT)
+                intrptr->tok_left = float_n->tok;
+            else
+                intrptr->tok_right = float_n->tok;
+
             return float_val;
-            break;
+
         case NODE_BOOLEAN:
             struct BooleanNode* bool_n = (struct BooleanNode*)node;
             struct Value boolean_val = {.as.b = bool_n->value,
                                         .val_type = VAL_BOOL};
+
+            if (left_or_right == LEFT)
+                intrptr->tok_left = bool_n->tok;
+            else
+                intrptr->tok_right = bool_n->tok;
+
             return boolean_val;
-            break;
+
         case NODE_STRING:
             struct StringNode* str_n = (struct StringNode*)node;
             struct ObjString* str = malloc(sizeof(struct ObjString));
@@ -109,18 +248,33 @@ struct Value interpret(struct Node* node) {
 
             struct Value str_val = {.as.obj = &str->base, .val_type = VAL_OBJ};
 
+            if (left_or_right == LEFT)
+                intrptr->tok_left = str_n->tok;
+            else
+                intrptr->tok_right = str_n->tok;
+
             return str_val;
+
         case NODE_UNARY:
             struct UnaryNode* un_n = (struct UnaryNode*)node;
-            return interpretUnaryNode(un_n);
+            return interpretUnaryNode(intrptr, un_n);
+
         case NODE_BINARY:
             struct BinaryNode* bin_n = (struct BinaryNode*)node;
-            return interpretBinaryNode(bin_n);
+            return interpretBinaryNode(intrptr, bin_n);
+
         case NODE_EXPRESSION:
             struct ExpressionNode* exp_n = (struct ExpressionNode*)node;
-            return interpret(exp_n->operations);
+            return interpret(intrptr, exp_n->operations, LEFT);
+
         case NODE_GROUPING:
             struct GroupingNode* grp_n = (struct GroupingNode*)node;
-            return interpret(grp_n->expr);
+            return interpret(intrptr, grp_n->expr, LEFT);
     }
+}
+
+void initInterpreter(struct Interpreter* intrptr, struct SourceFile* source) {
+    intrptr->source = source;
+    intrptr->tok_left = NULL;
+    intrptr->tok_right = NULL;
 }

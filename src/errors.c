@@ -88,3 +88,20 @@ void parserThrowError(enum ParserErrorType error_type, char* error_message,
 
     exit(1);
 }
+
+void interpreterThrowError(enum InterpreterErrorType error_type,
+                           char* error_message, struct SourceFile* source,
+                           struct Token* tok1, struct Token* tok2) {
+    printf("INTERPRETING ERROR: %s\n%ld |\t", error_message, tok1->line);
+
+    switch (error_type) {
+        case INTPTR_ERR_UNSUPPORTED_UN_OP:
+            break;
+        case INTPTR_ERR_UNSUPPORTED_BIN_OP:
+            break;
+    }
+
+    printf("\n");
+
+    exit(1);
+}

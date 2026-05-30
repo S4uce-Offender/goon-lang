@@ -30,8 +30,20 @@ char* tokenTypeToString(enum TokenType type) {
             return "DIV";
         case TOK_POW:
             return "POW";
-        case TOK_NOT:
-            return "NOT";
+        case TOK_BOOL_NOT:
+            return "BOOLEAN NOT";
+        case TOK_BOOL_AND:
+            return "BOOLEAN AND";
+        case TOK_BOOL_OR:
+            return "BOOLEAN OR";
+        case TOK_BIT_NOT:
+            return "BITWISE NOT";
+        case TOK_BIT_AND:
+            return "BITWISE AND";
+        case TOK_BIT_OR:
+            return "BITWISE OR";
+        case TOK_BIT_XOR:
+            return "BITWISE XOR";
         case TOK_ASSIGNMENT:
             return "ASSIGNMENT";
         case TOK_GREATER:
@@ -303,8 +315,6 @@ void tokenize(struct Lexer* lex) {
 
         char ch = advance(lex);
 
-        uint8_t lex_len = 1;
-
         if (isDigit(ch)) {
             consumeNum(lex);
             continue;
@@ -325,11 +335,9 @@ void tokenize(struct Lexer* lex) {
                     &lex->tokens,
                     (struct Token){
                         .lexeme = lex->source->text + lex->start_char,
-
                         .line_start = lex->where_firstchar,
                         .offset =
                             (lex->current_char - lex->where_firstchar - 1),
-
                         .line = lex->line,
                         .len = 1,
                         .token_type = TOK_PLUS,
@@ -341,11 +349,9 @@ void tokenize(struct Lexer* lex) {
                     &lex->tokens,
                     (struct Token){
                         .lexeme = lex->source->text + lex->start_char,
-
                         .line_start = lex->where_firstchar,
                         .offset =
                             (lex->current_char - lex->where_firstchar - 1),
-
                         .line = lex->line,
                         .len = 1,
                         .token_type = TOK_MINUS,
@@ -354,38 +360,30 @@ void tokenize(struct Lexer* lex) {
 
             case '*':
                 if (match(lex, '*')) {
-                    lex_len = 2;
-
                     lex->tokens.daAppend(
                         &lex->tokens,
                         (struct Token){
                             .lexeme = lex->source->text + lex->start_char,
-
                             .line_start = lex->where_firstchar,
                             .offset =
                                 (lex->current_char - lex->where_firstchar - 1),
-
                             .line = lex->line,
-                            .len = lex_len,
+                            .len = 2,
                             .token_type = TOK_POW,
                         });
-
                 } else {
                     lex->tokens.daAppend(
                         &lex->tokens,
                         (struct Token){
                             .lexeme = lex->source->text + lex->start_char,
-
                             .line_start = lex->where_firstchar,
                             .offset =
                                 (lex->current_char - lex->where_firstchar - 1),
-
                             .line = lex->line,
                             .len = 1,
                             .token_type = TOK_TIMES,
                         });
                 }
-
                 break;
 
             case '/':
@@ -393,16 +391,13 @@ void tokenize(struct Lexer* lex) {
                     &lex->tokens,
                     (struct Token){
                         .lexeme = lex->source->text + lex->start_char,
-
                         .line_start = lex->where_firstchar,
                         .offset =
                             (lex->current_char - lex->where_firstchar - 1),
-
                         .line = lex->line,
                         .len = 1,
                         .token_type = TOK_DIV,
                     });
-
                 break;
 
             case '(':
@@ -410,16 +405,13 @@ void tokenize(struct Lexer* lex) {
                     &lex->tokens,
                     (struct Token){
                         .lexeme = lex->source->text + lex->start_char,
-
                         .line_start = lex->where_firstchar,
                         .offset =
                             (lex->current_char - lex->where_firstchar - 1),
-
                         .line = lex->line,
                         .len = 1,
                         .token_type = TOK_LBRACE,
                     });
-
                 break;
 
             case ')':
@@ -427,16 +419,209 @@ void tokenize(struct Lexer* lex) {
                     &lex->tokens,
                     (struct Token){
                         .lexeme = lex->source->text + lex->start_char,
-
                         .line_start = lex->where_firstchar,
                         .offset =
                             (lex->current_char - lex->where_firstchar - 1),
-
                         .line = lex->line,
                         .len = 1,
                         .token_type = TOK_RBRACE,
                     });
+                break;
 
+            case '>':
+                if (match(lex, '=')) {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 2,
+                            .token_type = TOK_GREATER_EQUALS,
+                        });
+                } else {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 1,
+                            .token_type = TOK_GREATER,
+                        });
+                }
+                break;
+
+            case '<':
+                if (match(lex, '=')) {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 2,
+                            .token_type = TOK_LESS_EQUALS,
+                        });
+                } else {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 1,
+                            .token_type = TOK_LESS,
+                        });
+                }
+                break;
+
+            case '=':
+                if (match(lex, '=')) {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 2,
+                            .token_type = TOK_EQUALS,
+                        });
+                } else {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 1,
+                            .token_type = TOK_ASSIGNMENT,
+                        });
+                }
+                break;
+
+            case '!':
+                if (match(lex, '=')) {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 2,
+                            .token_type = TOK_NOT_EQUALS,
+                        });
+                } else {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 1,
+                            .token_type = TOK_BOOL_NOT,
+                        });
+                }
+                break;
+
+            case '&':
+                if (match(lex, '&')) {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 2,
+                            .token_type = TOK_BOOL_AND,
+                        });
+                } else {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 1,
+                            .token_type = TOK_BIT_AND,
+                        });
+                }
+                break;
+
+            case '|':
+                if (match(lex, '|')) {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 2,
+                            .token_type = TOK_BOOL_OR,
+                        });
+                } else {
+                    lex->tokens.daAppend(
+                        &lex->tokens,
+                        (struct Token){
+                            .lexeme = lex->source->text + lex->start_char,
+                            .line_start = lex->where_firstchar,
+                            .offset =
+                                (lex->current_char - lex->where_firstchar - 1),
+                            .line = lex->line,
+                            .len = 1,
+                            .token_type = TOK_BIT_OR,
+                        });
+                }
+                break;
+
+            case '~':
+                lex->tokens.daAppend(
+                    &lex->tokens,
+                    (struct Token){
+                        .lexeme = lex->source->text + lex->start_char,
+                        .line_start = lex->where_firstchar,
+                        .offset =
+                            (lex->current_char - lex->where_firstchar - 1),
+                        .line = lex->line,
+                        .len = 1,
+                        .token_type = TOK_BIT_NOT,
+                    });
+                break;
+
+            case '^':
+                lex->tokens.daAppend(
+                    &lex->tokens,
+                    (struct Token){
+                        .lexeme = lex->source->text + lex->start_char,
+                        .line_start = lex->where_firstchar,
+                        .offset =
+                            (lex->current_char - lex->where_firstchar - 1),
+                        .line = lex->line,
+                        .len = 1,
+                        .token_type = TOK_BIT_XOR,
+                    });
                 break;
 
             case '\n':
@@ -448,18 +633,15 @@ void tokenize(struct Lexer* lex) {
                 while (peek(lex) != '\n' && peek(lex) != '\0') {
                     advance(lex);
                 }
-
                 break;
 
             default: {
                 char error_msg[64];
-
                 sprintf(error_msg, "Unknown symbol '%c'", ch);
 
                 lexerThrowError(LEX_ERR_UNKNOWN_SYMBOL, error_msg, lex->source,
                                 lex->line, lex->where_firstchar,
                                 (lex->current_char - lex->where_firstchar - 1));
-
                 break;
             }
         }
@@ -468,10 +650,8 @@ void tokenize(struct Lexer* lex) {
     lex->tokens.daAppend(
         &lex->tokens, (struct Token){
                           .lexeme = lex->source->text + lex->current_char,
-
                           .line_start = lex->where_firstchar,
                           .offset = (lex->current_char - lex->where_firstchar),
-
                           .line = lex->line,
                           .len = 0,
                           .token_type = TOK_EOF,

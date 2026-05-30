@@ -3,6 +3,7 @@
 
 #include <math.h>
 
+#include "errors.h"
 #include "model.h"
 
 #define APPLY_UNARY_NUMERIC_OP(val, op)           \
@@ -27,6 +28,12 @@
                                                                               \
                 ((rhs).val_type == VAL_INT ? (float)(rhs).as.i : (rhs).as.f); \
         }                                                                     \
+    } while (0)
+
+#define APPLY_BINARY_BOOL_OP(result, left, right, op) \
+    do {                                              \
+        result.val_type = VAL_BOOL;                   \
+        result.as.b = (left).as.b op(right).as.b;     \
     } while (0)
 
 enum ValueType { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_OBJ };
@@ -55,6 +62,18 @@ struct Value {
     } as;
 };
 
-struct Value interpret(struct Node* ast);
+struct Interpreter {
+    struct SourceFile* source;
+
+    struct Token* tok_left;
+    struct Token* tok_right;
+};
+
+enum LeftOrRight { LEFT, RIGHT };
+
+struct Value interpret(struct Interpreter* intrptr, struct Node* ast,
+                       enum LeftOrRight left_or_right);
+
+void initInterpreter(struct Interpreter* intrptr, struct SourceFile* source);
 
 #endif
