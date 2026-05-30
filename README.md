@@ -18,7 +18,7 @@ Division (/)
 
 **Numerical Comparison**
 
-**String concatenation (using <string> + <string>)**
+**String concatenation (using &lt;string&gt; + &lt;string&gt;)**
 
 
 
@@ -26,4 +26,4 @@ To build this project simply run make build.
 
 USAGE
 
-./gooner <input file>.goon
+./gooner &lt;input file&gt;.goon
