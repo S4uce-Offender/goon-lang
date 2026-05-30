@@ -1,4 +1,7 @@
-Currently just parses simple mathematical expressions:
+Current features:
+
+**Simple mathematics:**
+
 Exponentiation (**)
 
 Unary Expressions (-, ~)
@@ -10,6 +13,14 @@ Subtraction (-)
 Multiplication (*)
 
 Division (/)
+
+**Boolean Comparisons**
+
+**Numerical Comparison**
+
+**String concatenation (using <string> + <string>)**
+
+
 
 To build this project simply run make build.
 
