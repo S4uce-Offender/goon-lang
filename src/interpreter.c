@@ -64,8 +64,10 @@ struct Value interpretBinaryNode(struct Interpreter* intrptr,
     if (bin_node->op_len == 1) {
         switch (bin_node->op[0]) {
             case '+':
-                if (isNumericVal(&left_val) && isNumericVal(&right_val))
+                if (isNumericVal(&left_val) && isNumericVal(&right_val)) {
                     APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, +);
+                    return result;
+                }
 
                 else if (isObjectType(&left_val, OBJ_STR) &&
                          isObjectType(&right_val, OBJ_STR)) {
