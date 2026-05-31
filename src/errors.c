@@ -94,11 +94,47 @@ void interpreterThrowError(enum InterpreterErrorType error_type,
                            struct Token* tok1, struct Token* tok2) {
     printf("INTERPRETING ERROR: %s\n%ld |\t", error_message, tok1->line);
 
+    if (tok1->token_type == TOK_STRING) {
+        tok1->lexeme--;
+        tok1->len += 2;
+    }
+
     switch (error_type) {
         case INTPTR_ERR_UNSUPPORTED_UN_OP:
+            printf("%.*s", (int)tok1->offset, &source->text[tok1->line_start]);
+            printf("%s%.*s%s", BRED, (int)tok1->len, tok1->lexeme, COLOR_RESET);
+            printRemainingLine(
+                &source->text[tok1->line_start + tok1->offset + tok1->len]);
+            printf("\n  |\t");
+            printSpaces(tok1->offset);
+            printf("%s^", BRED);
+            printTildes(tok1->len - 1);
+            printf("%s", COLOR_RESET);
             break;
         case INTPTR_ERR_UNSUPPORTED_BIN_OP:
-            break;
+            // Spaghetti slop (human slop) code
+            if (tok2->token_type == TOK_STRING) {
+                tok2->lexeme--;
+                tok2->len += 2;
+            }
+
+            uint8_t space_between_toks =
+                tok2->offset - (tok1->offset + tok1->len);
+            printf("%.*s", (int)tok1->offset, &source->text[tok1->line_start]);
+            printf("%s%.*s%s", BBLU, (int)tok1->len, tok1->lexeme, COLOR_RESET);
+            printf("%s%.*s%s", BRED, (int)space_between_toks,
+                   tok1->lexeme + tok1->len, COLOR_RESET);
+            printf("%s%.*s%s", BBLU, (int)tok2->len, tok2->lexeme, COLOR_RESET);
+            printRemainingLine(
+                &source->text[tok2->line_start + tok2->offset + tok2->len]);
+            printf("\n  |\t");
+            printSpaces(tok1->offset);
+            printf("%s^", BBLU);
+            printTildes(tok1->len - 1);
+            printSpaces(space_between_toks);
+            printf("^");
+            printTildes(tok2->len - 1);
+            printf("%s", COLOR_RESET);
     }
 
     printf("\n");

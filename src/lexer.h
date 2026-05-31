@@ -35,6 +35,8 @@ enum TokenType {
     TOK_BIT_AND,
     TOK_BIT_OR,
     TOK_BIT_XOR,
+    TOK_LSHIFT,
+    TOK_RSHIFT,
     TOK_ASSIGNMENT,
     TOK_GREATER,
     TOK_GREATER_EQUALS,
@@ -106,15 +108,15 @@ void printToken(struct Lexer* lex, struct Token* token);
 void daInit(struct TokenDA* arr, uint64_t tok_arr_size);
 void daAppend(struct TokenDA* arr, struct Token tok);
 
-char advance(struct Lexer* lex);
-char peek(struct Lexer* lex);
-char lookahead(struct Lexer* lex, uint8_t n);
+static inline char advance(struct Lexer* lex);
+static inline char peek(struct Lexer* lex);
+static inline char lookahead(struct Lexer* lex, uint8_t n);
 bool match(struct Lexer* lex, char expected);
-bool isWhitespace(struct Lexer* lex);
-bool isDigit(char ch);
-bool isAlpha(char ch);
-bool isAlnum(char ch);
-void skipWhitespace(struct Lexer* lex);
+static inline bool isWhitespace(struct Lexer* lex);
+static inline bool isDigit(char ch);
+static inline bool isAlpha(char ch);
+static inline bool isAlnum(char ch);
+static inline void skipWhitespace(struct Lexer* lex);
 
 void consumeNum(struct Lexer* lex);
 void consumeString(struct Lexer* lex);
@@ -126,6 +128,7 @@ void hashKeywords();
 uint64_t getKeywordType(char* string);
 
 char* createLexeme(struct Lexer* lex, uint8_t lexeme_size);
+void createToken(struct Lexer* lex, uint8_t len, enum TokenType token_type);
 void tokenize(struct Lexer* lex);
 
 void initLexerDefault(struct Lexer* lex, struct SourceFile* source);

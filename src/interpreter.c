@@ -13,7 +13,8 @@ static inline bool isNumericVal(struct Value* val) {
 }
 
 static inline bool isBoolable(struct Value* val) {
-    return val->val_type == VAL_INT || val->val_type == VAL_BOOL;
+    return val->val_type == VAL_INT || val->val_type == VAL_FLOAT ||
+           val->val_type == VAL_BOOL;
 }
 
 static void handleUnsupportedBinOp(struct Interpreter* intrptr,
@@ -32,6 +33,21 @@ static void handleUnsupportedBinOp(struct Interpreter* intrptr,
     interpreterThrowError(INTPTR_ERR_UNSUPPORTED_BIN_OP, err_msg,
                           intrptr->source, intrptr->tok_left,
                           intrptr->tok_right);
+}
+
+static void handleUnsupportedUnOp(struct Interpreter* intrptr,
+                                  struct UnaryNode* un_node) {
+    char err_msg[256];
+
+    snprintf(err_msg, sizeof(err_msg),
+             "Unsupported operation '%c' with %s token", un_node->op,
+             tokenTypeToString(intrptr->tok_left->token_type));
+
+    size_t err_msg_len = strlen(err_msg);
+    err_msg[err_msg_len] = '\0';
+
+    interpreterThrowError(INTPTR_ERR_UNSUPPORTED_UN_OP, err_msg,
+                          intrptr->source, intrptr->tok_left, NULL);
 }
 
 struct Value interpretBinaryNode(struct Interpreter* intrptr,
@@ -75,6 +91,36 @@ struct Value interpretBinaryNode(struct Interpreter* intrptr,
                 } else {
                     handleUnsupportedBinOp(intrptr, bin_node);
                 }
+            case '<':
+                if (isNumericVal(&left_val) && isNumericVal(&right_val))
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, <);
+                else if (isObjectType(&left_val, OBJ_STR) &&
+                         isObjectType(&right_val, OBJ_STR)) {
+                    result.val_type = VAL_BOOL;
+
+                    result.as.b = (strcmp(intrptr->tok_left->lexeme,
+                                          intrptr->tok_right->lexeme) < 0)
+                                      ? true
+                                      : false;
+                } else {
+                    handleUnsupportedBinOp(intrptr, bin_node);
+                }
+                break;
+            case '>':
+                if (isNumericVal(&left_val) && isNumericVal(&right_val))
+                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, >);
+                else if (isObjectType(&left_val, OBJ_STR) &&
+                         isObjectType(&right_val, OBJ_STR)) {
+                    result.val_type = VAL_BOOL;
+
+                    result.as.b = (strcmp(intrptr->tok_left->lexeme,
+                                          intrptr->tok_right->lexeme) > 0)
+                                      ? true
+                                      : false;
+                } else {
+                    handleUnsupportedBinOp(intrptr, bin_node);
+                }
+                break;
         }
 
         if (isValueType(&left_val, VAL_INT) &&
@@ -89,12 +135,16 @@ struct Value interpretBinaryNode(struct Interpreter* intrptr,
                 case '/':
                     APPLY_BINARY_NUMERIC_OP(result, left_val, right_val, /);
                     break;
-                case '<':
-                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, <);
+                case '&':
+                    result.as.i = left_val.as.i & right_val.as.i;
                     break;
-                case '>':
-                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, >);
+                case '^':
+                    result.as.i = left_val.as.i ^ right_val.as.i;
                     break;
+                case '|':
+                    result.as.i = left_val.as.i | right_val.as.i;
+                    break;
+
                 default:
                     handleUnsupportedBinOp(intrptr, bin_node);
             }
@@ -117,48 +167,88 @@ struct Value interpretBinaryNode(struct Interpreter* intrptr,
 
                 result.as.f = powf(arg1, arg2);
                 break;
-        }
+            case '<':
+                if (isNumericVal(&left_val) && isNumericVal(&right_val))
+                    if (bin_node->op[1] == '<')
+                        result.as.i = left_val.as.i << right_val.as.i;
+                    else
+                        APPLY_BINARY_BOOL_OP(result, left_val, right_val, <=);
+                else if (isObjectType(&left_val, OBJ_STR) &&
+                         isObjectType(&right_val, OBJ_STR)) {
+                    result.val_type = VAL_BOOL;
 
-        if (isValueType(&left_val, VAL_INT) &&
-            isValueType(&right_val, VAL_INT)) {
-            switch (bin_node->op[0]) {
-                case '<':
-                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, <=);
-                    return result;
-                case '>':
-                    APPLY_BINARY_BOOL_OP(result, left_val, right_val, >=);
-                    return result;
-                case '=':
+                    result.as.b = (strcmp(intrptr->tok_left->lexeme,
+                                          intrptr->tok_right->lexeme) <= 0)
+                                      ? true
+                                      : false;
+                } else {
+                    handleUnsupportedBinOp(intrptr, bin_node);
+                }
+                return result;
+            case '>':
+                if (isNumericVal(&left_val) && isNumericVal(&right_val))
+                    if (bin_node->op[1] == '>')
+                        result.as.i = left_val.as.i >> right_val.as.i;
+                    else
+                        APPLY_BINARY_BOOL_OP(result, left_val, right_val, >=);
+                else if (isObjectType(&left_val, OBJ_STR) &&
+                         isObjectType(&right_val, OBJ_STR)) {
+                    result.val_type = VAL_BOOL;
+
+                    result.as.b = (strcmp(intrptr->tok_left->lexeme,
+                                          intrptr->tok_right->lexeme) >= 0)
+                                      ? true
+                                      : false;
+                } else {
+                    handleUnsupportedBinOp(intrptr, bin_node);
+                }
+                return result;
+            case '=':
+                if (isBoolable(&left_val) && isBoolable(&right_val))
                     APPLY_BINARY_BOOL_OP(result, left_val, right_val, ==);
-                    return result;
-                case '!':
+                else if (isObjectType(&left_val, OBJ_STR) &&
+                         isObjectType(&right_val, OBJ_STR)) {
+                    result.val_type = VAL_BOOL;
+
+                    result.as.b = (strcmp(intrptr->tok_left->lexeme,
+                                          intrptr->tok_right->lexeme) == 0)
+                                      ? true
+                                      : false;
+                } else {
+                    handleUnsupportedBinOp(intrptr, bin_node);
+                }
+                return result;
+            case '!':
+                if (isBoolable(&left_val) && isBoolable(&right_val))
                     APPLY_BINARY_BOOL_OP(result, left_val, right_val, !=);
-                    return result;
-            }
+                else if (isObjectType(&left_val, OBJ_STR) &&
+                         isObjectType(&right_val, OBJ_STR)) {
+                    result.val_type = VAL_BOOL;
+
+                    result.as.b = (strcmp(intrptr->tok_left->lexeme,
+                                          intrptr->tok_right->lexeme) != false)
+                                      ? true
+                                      : false;
+                } else {
+                    handleUnsupportedBinOp(intrptr, bin_node);
+                }
+
+                return result;
         }
 
         if (isBoolable(&left_val) && isBoolable(&right_val)) {
             switch (bin_node->op[0]) {
                 case '|':
-                    if (isValueType(&left_val, VAL_INT))
-                        left_val.as.b = left_val.as.i;
-                    if (isValueType(&right_val, VAL_INT))
-                        right_val.as.b = right_val.as.i;
-
                     APPLY_BINARY_BOOL_OP(result, left_val, right_val, ||);
                     break;
                 case '&':
-                    if (isValueType(&left_val, VAL_INT))
-                        left_val.as.b = left_val.as.i;
-                    if (isValueType(&right_val, VAL_INT))
-                        right_val.as.b = right_val.as.i;
-
                     APPLY_BINARY_BOOL_OP(result, left_val, right_val, &&);
                     break;
                 default:
                     handleUnsupportedBinOp(intrptr, bin_node);
             }
-        }
+        } else
+            handleUnsupportedBinOp(intrptr, bin_node);
     }
 
     return result;
@@ -168,18 +258,8 @@ struct Value interpretUnaryNode(struct Interpreter* intrptr,
                                 struct UnaryNode* un_node) {
     struct Value value = interpret(intrptr, un_node->operand, LEFT);
 
-    if (!isNumericVal(&value)) {
-        char err_msg[256];
-
-        snprintf(err_msg, sizeof(err_msg),
-                 "Unsupported operation with %s token",
-                 tokenTypeToString(intrptr->tok_left->token_type));
-
-        size_t err_msg_len = strlen(err_msg);
-        err_msg[err_msg_len] = '\0';
-
-        interpreterThrowError(INTPTR_ERR_UNSUPPORTED_UN_OP, err_msg,
-                              intrptr->source, intrptr->tok_left, NULL);
+    if (!isBoolable(&value)) {
+        handleUnsupportedUnOp(intrptr, un_node);
     }
 
     switch (un_node->op) {
@@ -190,11 +270,19 @@ struct Value interpretUnaryNode(struct Interpreter* intrptr,
             APPLY_UNARY_NUMERIC_OP(value, -);
             break;
         case '~':
-            if (value.val_type != VAL_INT) {
-                exit(1);
+            if (!isValueType(&value, VAL_INT)) {
+                handleUnsupportedUnOp(intrptr, un_node);
             }
 
             value.as.i = ~value.as.i;
+            break;
+        case '!':
+            if (isValueType(&value, VAL_INT)) {
+                value.as.f = (float)value.as.i;
+            }
+
+            value.as.b = (value.as.f == 0.0f) ? true : false;
+            break;
     }
 
     return value;
@@ -277,4 +365,22 @@ void initInterpreter(struct Interpreter* intrptr, struct SourceFile* source) {
     intrptr->source = source;
     intrptr->tok_left = NULL;
     intrptr->tok_right = NULL;
+}
+
+void printValue(struct Value* val) {
+    switch (val->val_type) {
+        case VAL_INT:
+            printf("%d", val->as.i);
+            break;
+        case VAL_FLOAT:
+            printf("%f", val->as.f);
+            break;
+        case VAL_BOOL:
+            printf("%s", (val->as.b) ? "true" : "false");
+            break;
+        default:
+            struct ObjString* string = (struct ObjString*)val->as.obj;
+
+            printf("%.*s", (int)string->size, string->string);
+    }
 }

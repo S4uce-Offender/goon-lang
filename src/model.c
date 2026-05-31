@@ -209,7 +209,7 @@ void printStringNode(struct StringNode* str_node, uint8_t hierarchy) {
     printf("%sString%s%s{%s ", hierarchy_color, COLOR_RESET, hierarchy_color,
            COLOR_RESET);
 
-    printf("%.*s", (int)str_node->size, str_node->string);
+    printf("%s", str_node->string);
     printf("%s }%s", hierarchy_color, COLOR_RESET);
 }
 

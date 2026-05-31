@@ -63,18 +63,7 @@ int main(int argc, char** argv) {
 
     struct Value ret_val = interpret(&intrptr, ast, LEFT);
 
-    if (ret_val.val_type == VAL_INT) {
-        printf("%d", ret_val.as.i);
-    } else if (ret_val.val_type == VAL_FLOAT) {
-        printf("%f", ret_val.as.f);
-    } else if (ret_val.val_type == VAL_BOOL) {
-        printf("%s", (ret_val.as.b) ? "true" : "false");
-    } else {
-        struct ObjString* string = (struct ObjString*)ret_val.as.obj;
-
-        printf("%.*s", (int)string->size, string->string);
-    }
-
+    printValue(&ret_val);
     printf("\n\n");
 
     free(text_buf);

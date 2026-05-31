@@ -2,6 +2,7 @@
 #define INTERPVALER_H
 
 #include <math.h>
+#include <string.h>
 
 #include "errors.h"
 #include "model.h"
@@ -30,10 +31,16 @@
         }                                                                     \
     } while (0)
 
-#define APPLY_BINARY_BOOL_OP(result, left, right, op) \
-    do {                                              \
-        result.val_type = VAL_BOOL;                   \
-        result.as.b = (left).as.b op(right).as.b;     \
+#define APPLY_BINARY_BOOL_OP(result, left, right, op)                        \
+    do {                                                                     \
+        float lhs =                                                          \
+            ((left).val_type == VAL_INT) ? (float)(left).as.i : (left).as.f; \
+                                                                             \
+        float rhs = ((right).val_type == VAL_INT) ? (float)(right).as.i      \
+                                                  : (right).as.f;            \
+                                                                             \
+        (result).val_type = VAL_BOOL;                                        \
+        (result).as.b = (lhs op rhs);                                        \
     } while (0)
 
 enum ValueType { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_OBJ };
@@ -75,5 +82,7 @@ struct Value interpret(struct Interpreter* intrptr, struct Node* ast,
                        enum LeftOrRight left_or_right);
 
 void initInterpreter(struct Interpreter* intrptr, struct SourceFile* source);
+
+void printValue(struct Value* val);
 
 #endif
