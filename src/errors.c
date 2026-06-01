@@ -32,6 +32,7 @@ void lexerThrowError(enum LexerErrorType error_type, char* error_message,
                      uint64_t where_firstchar, uint64_t offset) {
     printf("LEXING ERROR: %s\n%ld |\t", error_message, line);
     uint64_t where_symbol = where_firstchar + offset;
+    REPL_HAS_ERROR = true;
 
     switch (error_type) {
         case LEX_ERR_UNKNOWN_SYMBOL:
@@ -52,7 +53,7 @@ void lexerThrowError(enum LexerErrorType error_type, char* error_message,
 
     printf("\n");
 
-    exit(1);
+    if (!REPL_MODE) exit(1);
 }
 
 void parserThrowError(enum ParserErrorType error_type, char* error_message,
@@ -60,6 +61,8 @@ void parserThrowError(enum ParserErrorType error_type, char* error_message,
                       uint64_t where_firstchar, uint64_t offset) {
     printf("PARSING ERROR: %s\n%ld |\t", error_message, line);
     uint64_t where_symbol = where_firstchar + offset;
+    uint64_t chars_printed;
+    REPL_HAS_ERROR = true;
 
     switch (error_type) {
         case PRSR_ERR_MISSING_LBRACE:
@@ -72,27 +75,35 @@ void parserThrowError(enum ParserErrorType error_type, char* error_message,
 
         case PRSR_ERR_MISSING_RBRACE:
             printf("%.*s", (int)offset, &source->text[where_firstchar]);
-            uint64_t chars_printed =
+            chars_printed =
                 printRemainingLineAsErr(&source->text[where_symbol]);
             printf("\n  |\t");
             printSpaces(offset);
             printf("%s^", BRED);
-            printTildes(chars_printed);
+            printTildes(chars_printed - 1);
             printf("%s", COLOR_RESET);
             break;
         case PRSR_ERR_UNEXPECTED_TOKEN:
-            break;
+            printf("%.*s", (int)offset, &source->text[where_firstchar]);
+            chars_printed =
+                printRemainingLineAsErr(&source->text[where_symbol]);
+            printf("\n  |\t");
+            printSpaces(offset);
+            printf("%s^", BRED);
+            printTildes(chars_printed - 1);
+            printf("%s", COLOR_RESET);
     }
 
     printf("\n");
 
-    exit(1);
+    if (!REPL_MODE) exit(1);
 }
 
 void interpreterThrowError(enum InterpreterErrorType error_type,
                            char* error_message, struct SourceFile* source,
                            struct Token* tok1, struct Token* tok2) {
     printf("INTERPRETING ERROR: %s\n%ld |\t", error_message, tok1->line);
+    REPL_HAS_ERROR = true;
 
     if (tok1->token_type == TOK_STRING) {
         tok1->lexeme--;
@@ -139,5 +150,5 @@ void interpreterThrowError(enum InterpreterErrorType error_type,
 
     printf("\n");
 
-    exit(1);
+    if (!REPL_MODE) exit(1);
 }

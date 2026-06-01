@@ -135,10 +135,11 @@ void initLexerDefault(struct Lexer* lex, struct SourceFile* source);
 void initLexerManual(struct Lexer* lex, struct SourceFile* source,
                      uint64_t tok_arr_capacity);
 
-#define GET_MACRO(_1, _2, _3, NAME, ...) NAME
+#define INIT_LEX_GET_MACRO(_1, _2, _3, NAME, ...) NAME
 
-#define initLexer(...) \
-    GET_MACRO(__VA_ARGS__, initLexerManual, initLexerDefault)(__VA_ARGS__)
+#define initLexer(...)                               \
+    INIT_LEX_GET_MACRO(__VA_ARGS__, initLexerManual, \
+                       initLexerDefault)(__VA_ARGS__)
 
 void freeLexer(struct Lexer* lex);
 

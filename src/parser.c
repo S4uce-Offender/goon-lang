@@ -96,6 +96,7 @@ struct Node* parsePrimary(struct Parser* p, struct Arena* arena) {
                              "Expected ')' before end of line", p->source,
                              lbrace_tok->line, lbrace_tok->line_start,
                              lbrace_tok->offset);
+            return NULL;
         } else {
             struct GroupingNode* n = createGroupingNode(arena, expr);
 
@@ -287,6 +288,7 @@ struct Node* parseExpression(struct Parser* p, struct Arena* arena) {
 }
 
 struct Node* parse(struct Parser* p, struct Arena* arena) {
+    if (REPL_HAS_ERROR) return NULL;
     struct Node* ast = parseExpression(p, arena);
 
     if (!parserAtEnd(p)) {

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "config.h"
 #include "source.h"
 #include "terminal_colors.h"
 

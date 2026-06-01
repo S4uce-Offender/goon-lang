@@ -43,7 +43,7 @@
         (result).as.b = (lhs op rhs);                                        \
     } while (0)
 
-enum ValueType { VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_OBJ };
+enum ValueType { VAL_NONE, VAL_INT, VAL_FLOAT, VAL_BOOL, VAL_OBJ };
 
 enum ObjectType { OBJ_STR };
 
@@ -75,6 +75,26 @@ struct Interpreter {
     struct Token* tok_left;
     struct Token* tok_right;
 };
+
+static inline bool isValueType1(struct Value* val, enum ValueType val_type);
+
+static inline bool isValueType2(struct Value* val1, struct Value* val2,
+                                enum ValueType val_type);
+
+#define IS_VAL_TYPE_GET_MACRO(_1, _2, _3, NAME, ...) NAME
+
+#define isValueType(...) \
+    IS_VAL_TYPE_GET_MACRO(__VA_ARGS__, isValueType2, isValueType1)(__VA_ARGS__)
+
+static inline bool isNumericVal1(struct Value* val);
+
+static inline bool isNumericVal2(struct Value* val1, struct Value* val2);
+
+#define IS_NUMERIC_TYPE_GET_MACRO(_1, _2, NAME, ...) NAME
+
+#define isNumericVal(...)                                 \
+    IS_NUMERIC_TYPE_GET_MACRO(__VA_ARGS__, isNumericVal2, \
+                              isNumericVal1)(__VA_ARGS__)
 
 enum LeftOrRight { LEFT, RIGHT };
 
