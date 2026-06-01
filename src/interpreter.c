@@ -27,6 +27,11 @@ static inline bool isBoolable(struct Value* val) {
            val->val_type == VAL_BOOL;
 }
 
+static inline void freeString(struct ObjString* str) {
+    free(str->string);
+    free(str);
+}
+
 static void handleUnsupportedBinOp(struct Interpreter* intrptr,
                                    struct BinaryNode* bin_node) {
     char err_msg[256];
@@ -85,15 +90,14 @@ struct Value interpretBinaryNode(struct Interpreter* intrptr,
                 else if (isObjectType(&left_val, OBJ_STR) &&
                          isObjectType(&right_val, OBJ_STR)) {
                     result.val_type = VAL_OBJ;
-                    size_t size =
-                        intrptr->tok_left->len + intrptr->tok_right->len;
+                    struct ObjString* str1 = (struct ObjString*)left_val.as.obj;
+                    struct ObjString* str2 =
+                        (struct ObjString*)right_val.as.obj;
+                    size_t size = str1->size + str2->size;
 
                     char* str = malloc(size);
-                    strncpy(str, intrptr->tok_left->lexeme,
-                            intrptr->tok_left->len);
-                    strncpy(str + intrptr->tok_left->len,
-                            intrptr->tok_right->lexeme,
-                            intrptr->tok_right->len);
+                    strncpy(str, str1->string, str1->size);
+                    strncpy(str + str1->size, str2->string, str2->size);
 
                     struct ObjString* str_obj =
                         malloc(sizeof(struct ObjString));
@@ -101,6 +105,9 @@ struct Value interpretBinaryNode(struct Interpreter* intrptr,
                     str_obj->base.kind = OBJ_STR;
                     str_obj->string = str;
                     str_obj->size = size;
+
+                    freeString(str1);
+                    freeString(str2);
 
                     result.as.obj = &str_obj->base;
                 } else {
@@ -460,5 +467,8 @@ void printValue(struct Value* val) {
             struct ObjString* string = (struct ObjString*)val->as.obj;
 
             printf("%.*s", (int)string->size, string->string);
+
+            free(string->string);
+            free(val->as.obj);
     }
 }
